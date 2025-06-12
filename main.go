@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/Knetic/govaluate"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type Calculation struct {
@@ -29,9 +32,21 @@ func calculateExpression(expression string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%v", result), err
+	return fmt.Sprintf("%v", result), nil
+}
+
+func getCalculations(c echo.Context) error {
+	return c.JSON(http.StatusOK, calculations)
 }
 
 func main() {
-	calculateExpression("2 + 2")
+	e := echo.New()
+
+	e.Use(middleware.CORS())
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	e.GET("/calculations", getCalculations)
+
+	e.Start("localhost:8080")
 }
