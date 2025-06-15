@@ -69,6 +69,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	e.GET("/calculations", getCalculations)
+	e.POST("/calculations", postCalculations)
 
 	e.Start("localhost:8080")
 }
