@@ -58,7 +58,7 @@ func postCalculations(c echo.Context) error {
 	}
 	calculations = append(calculations, calc)
 
-	return c.JSON(http.StatusOK, calc)
+	return c.JSON(http.StatusCreated, calc)
 }
 
 func main() {
