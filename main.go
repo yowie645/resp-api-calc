@@ -93,7 +93,7 @@ func main() {
 
 	e.GET("/calculations", getCalculations)
 	e.POST("/calculations", postCalculations)
-	e.POST("/calculations/:id", patchCalculations)
+	e.PATCH("/calculations/:id", patchCalculations)
 
 	e.Start("localhost:8080")
 }
