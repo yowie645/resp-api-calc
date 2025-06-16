@@ -4,7 +4,7 @@ import (
 	"net/http"
 	calcservice "resp-api-calc/internal/calcService"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 type CalculationHandler struct {
