@@ -2,16 +2,35 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Knetic/govaluate"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
+var db *gorm.DB
+
+func initDB() {
+	dsn := "host=localhost user=postgres password=yowie645 dbname=postgres port=5342 sslmode=disable"
+	var err error
+
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Could not connect to database: %v", err)
+	}
+
+	if err := db.AutoMigrate(&Calculation{}); err != nil {
+		log.Fatalf("Could not migrate: %v", err)
+	}
+}
+
 type Calculation struct {
-	ID         string `json:"id"`
+	ID         string `gorm:"primaryKey" json:"id"`
 	Expression string `json:"expression"`
 	Result     string `json:"result"`
 }
@@ -19,8 +38,6 @@ type Calculation struct {
 type CalculationRequest struct {
 	Expression string `json:"expression"`
 }
-
-var calculations = []Calculation{}
 
 func calculateExpression(expression string) (string, error) {
 	expr, err := govaluate.NewEvaluableExpression(expression)
@@ -37,6 +54,11 @@ func calculateExpression(expression string) (string, error) {
 }
 
 func getCalculations(c echo.Context) error {
+	var calculations []Calculation
+
+	if err := db.Find(&calculations).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not retrieve calculations"})
+	}
 	return c.JSON(http.StatusOK, calculations)
 }
 
@@ -56,7 +78,9 @@ func postCalculations(c echo.Context) error {
 		Expression: req.Expression,
 		Result:     result,
 	}
-	calculations = append(calculations, calc)
+	if err := db.Create(&calc).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not create calculation"})
+	}
 
 	return c.JSON(http.StatusCreated, calc)
 }
@@ -74,25 +98,26 @@ func patchCalculations(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid expression"})
 	}
 
-	for i, calculation := range calculations {
-		if calculation.ID == id {
-			calculations[i].Expression = req.Expression
-			calculations[i].Result = result
-			return c.JSON(http.StatusOK, calculations[i])
-		}
+	var calc Calculation
+	if err := db.First(&calc, "id = ?", id).Error; err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Calculation not found"})
 	}
-	return c.JSON(http.StatusBadRequest, map[string]string{"error": "Calculation not found"})
+	calc.Expression = req.Expression
+	calc.Result = result
+
+	if err := db.Save(&calc).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not update calculation"})
+	}
+
+	return c.JSON(http.StatusOK, calc)
 }
 func deleteCalculations(c echo.Context) error {
 	id := c.Param("id")
 
-	for i, calculation := range calculations {
-		if calculation.ID == id {
-			calculations = append(calculations[:i], calculations[i+1:]...)
-			return c.NoContent(http.StatusNoContent)
-		}
+	if err := db.Delete(&Calculation{}, id).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not delete calculation"})
 	}
-	return c.JSON(http.StatusBadRequest, map[string]string{"error": "Calculation not found"})
+	return c.NoContent(http.StatusNoContent)
 }
 
 func main() {
