@@ -114,13 +114,14 @@ func patchCalculations(c echo.Context) error {
 func deleteCalculations(c echo.Context) error {
 	id := c.Param("id")
 
-	if err := db.Delete(&Calculation{}, id).Error; err != nil {
+	if err := db.Delete(&Calculation{}, "id = ?", id).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not delete calculation"})
 	}
 	return c.NoContent(http.StatusNoContent)
 }
 
 func main() {
+	initDB()
 	e := echo.New()
 
 	e.Use(middleware.CORS())
